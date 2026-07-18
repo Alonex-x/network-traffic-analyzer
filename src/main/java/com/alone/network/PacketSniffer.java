@@ -74,7 +74,7 @@ public class PacketSniffer {
             handle = new PcapHandle.Builder(interfaceName)
                     .snaplen(65536)
                     .promiscuousMode(PcapNetworkInterface.PromiscuousMode.PROMISCUOUS)
-                    .timeout(10)
+                    .timeoutMillis(10)
                     .build();
 
             // 3. Configurar el listener de paquetes.
