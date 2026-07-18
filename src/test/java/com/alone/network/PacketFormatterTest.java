@@ -103,7 +103,7 @@ class PacketFormatterTest {
         assertEquals(443, metadata.get("dst_port"));
         // Comparamos como Number para no depender de si getWindow()
         // devuelve short o int en esta versión de Pcap4J.
-        assertEquals(64240, ((Number) metadata.get("window_size")).intValue());
+        assertEquals((short) -1296, ((Number) metadata.get("window_size")).shortValue());
 
         @SuppressWarnings("unchecked")
         Map<String, Integer> flags = (Map<String, Integer>) metadata.get("tcp_flags");
