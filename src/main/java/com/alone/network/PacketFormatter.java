@@ -1,47 +1,46 @@
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-Instant timestamp = Instant.now();
-                ? packet.getTimestamp().toInstant()
-                : Instant.now();
+        Instant timestamp = Instant.now();
+Instant timestamp = Instant.now();package com.alone.network;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.pcap4j.packet.IpV4Packet;
+import org.pcap4j.packet.IpV6Packet;
+import org.pcap4j.packet.Packet;
+import org.pcap4j.packet.TcpPacket;
+import org.pcap4j.packet.UdpPacket;
+
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * Clase utilitaria encargada de extraer metadatos de los paquetes capturados
+ * y convertirlos a formato JSON. No mantiene estado interno.
+ */
+public final class PacketFormatter {
+
+    // Formateador ISO 8601 con precision de milisegundos (ej. 2026-07-14T22:15:30.123Z)
+    private static final DateTimeFormatter ISO_FORMATTER =
+            DateTimeFormatter.ISO_INSTANT;
+
+    private PacketFormatter() {
+        // Clase utilitaria: no se debe instanciar.
+    }
+
+    /**
+     * Extrae los metadatos relevantes de un paquete capturado.
+     * Solo procesa paquetes con capa IP (v4 o v6) y transporte TCP o UDP.
+     *
+     * @param packet el paquete capturado por Pcap4J.
+     * @return un mapa ordenado con los metadatos, o null si el paquete no es de interes.
+     */
+    public static Map<String, Object> extractMetadata(Packet packet) {
+        // Usamos LinkedHashMap para preservar el orden de insercion en el JSON de salida.
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        // 1. Timestamp del paquete, formateado como ISO 8601.
+        Instant timestamp = Instant.now();
         metadata.put("timestamp", ISO_FORMATTER.format(timestamp));
 
         // 2. Determinar la capa IP (IPv4 o IPv6).
