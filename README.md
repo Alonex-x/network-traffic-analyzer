@@ -42,3 +42,4 @@ Presiona `Ctrl+C` para detener la captura y ver el resumen final.
 ## Nota
 
 Este proyecto es solo para fines educativos y de diagnóstico en redes propias o con autorización explícita.
+
