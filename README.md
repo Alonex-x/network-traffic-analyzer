@@ -43,3 +43,7 @@ Presiona `Ctrl+C` para detener la captura y ver el resumen final.
 
 Este proyecto es solo para fines educativos y de diagnóstico en redes propias o con autorización explícita.
 
+
+---
+
+Este proyecto forma parte del [Ecosistema Nexus](https://github.com/Alonex-x/nexus-agent-api/blob/main/ECOSYSTEM.md).
