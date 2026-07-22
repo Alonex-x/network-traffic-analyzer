@@ -1,49 +1,39 @@
----
 # Network Traffic Analyzer
 
-![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk&logoColor=white)
+![Java](https://img.shields.io/badge/Java-17-orange)
+![Maven](https://img.shields.io/badge/Maven-3.9-blue)
 
-Herramienta de línea de comandos para capturar y analizar tráfico de red en tiempo real. Extrae metadatos de paquetes TCP/IP y los exporta en formato JSONL.
+A lightweight command-line tool for passive network traffic analysis. Captures packets on a specified network interface and extracts relevant metadata (source/destination IP, ports, protocol, TTL, TCP flags) in JSON format, ready to be piped into other tools or analyzed with jq.
 
-## Requisitos
+This project is for educational and diagnostic purposes only, on networks you own or have explicit permission to monitor.
+
+## Features
+
+- Captures IP headers, TCP/UDP ports, TTL, and TCP flags
+- Outputs each packet as a JSON object
+- Configurable packet count limit
+- Summary report on shutdown with total packets captured and lost
+- CI/CD with GitHub Actions and automated tests (JUnit 5)
+
+## Requirements
 
 - Java 17
-- Maven
-- libpcap (instalado en el sistema)
-- Permisos de root
+- Maven 3.9+
 
-## Compilación
+## Installation
 
-```
-mvn clean package
-```
+git clone <repo-url>
+cd network-traffic-analyzer
+mvn package
 
-## Uso
+## Usage
 
-```
-sudo java -jar target/network-analyzer-1.0.jar <interfaz>
-```
+java -jar target/network-traffic-analyzer-1.0.jar --interface eth0 --count 100
 
-Ejemplo:
+## Tests
 
-```
-sudo java -jar target/network-analyzer-1.0.jar eth0
-```
+mvn test
 
-Presiona `Ctrl+C` para detener la captura y ver el resumen final.
+## Notes
 
-## Ejemplo de salida
-
-```
-{"timestamp":"2026-07-14T22:15:30.123Z","src_ip":"192.168.1.100","dst_ip":"8.8.8.8","ttl":64,"protocol":"TCP","src_port":54321,"dst_port":443,"window_size":65535,"tcp_flags":{"SYN":1,"ACK":0,"FIN":0,"RST":0,"PSH":0,"URG":0}}
-{"timestamp":"2026-07-14T22:15:30.456Z","src_ip":"10.0.0.1","dst_ip":"10.0.0.2","ttl":128,"protocol":"UDP","src_port":53,"dst_port":45678,"length":128}
-```
-
-## Nota
-
-Este proyecto es solo para fines educativos y de diagnóstico en redes propias o con autorización explícita.
-
-
----
-
-Este proyecto forma parte del [Ecosistema Nexus](https://github.com/Alonex-x/nexus-agent-api/blob/main/ECOSYSTEM.md).
+Educational and portfolio project.
