@@ -10,6 +10,8 @@ jobs:
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
+      - name: Instalar dependencias nativas (libpcap)
+        run: sudo apt-get update && sudo apt-get install -y libpcap-dev
       - name: Configurar JDK 17
         uses: actions/setup-java@v4
         with:
