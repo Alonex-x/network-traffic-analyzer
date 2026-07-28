@@ -89,4 +89,13 @@ public final class PacketFormatter {
             return "{}";
         }
     }
+
+    public static String toPrettyJson(Map<String, Object> metadata) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(metadata);
+        } catch (JsonProcessingException e) {
+            return "{}";
+        }
+    }
 }
