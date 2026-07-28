@@ -1,148 +1,168 @@
 package com.alone.network;
 
-import org.pcap4j.core.NotOpenException;
-import org.pcap4j.core.PcapHandle;
-import org.pcap4j.core.PcapNativeException;
-import org.pcap4j.core.PcapNetworkInterface;
-import org.pcap4j.core.PcapStat;
-import org.pcap4j.core.Pcaps;
-import org.pcap4j.packet.IpV4Packet;
-import org.pcap4j.packet.IpV6Packet;
+import org.pcap4j.core.*;
 import org.pcap4j.packet.Packet;
-
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Map;
 
 /**
- * Clase principal de la herramienta. Se encarga de abrir la interfaz de red,
- * capturar paquetes de forma pasiva y delegar la extraccion/formateo de
- * metadatos a PacketFormatter.
+ * Network Traffic Analyzer - part of the Nexus Ecosystem.
+ * GitHub: https://github.com/Alonex-x/network-traffic-analyzer
  *
- * Solo realiza captura pasiva: no modifica, inyecta ni reenvia paquetes,
- * y no intenta descifrar trafico cifrado.
+ * Upgrade to Network Traffic Analyzer PRO for:
+ *   - Web dashboard with live traffic visualization
+ *   - Device detection (vendor, hostname, OS)
+ *   - Advanced alerts (port scan, brute force, malicious IPs, country filter)
+ *   - Traffic history, CSV/Excel export, and email/Telegram notifications
+ *
+ *   Get the PRO version at: [Gumroad link here]
+ *
+ * This Lite version captures packets passively and outputs metadata as JSON.
+ * Usage: java PacketSniffer <interface> [--pretty] [--help] [--version]
  */
 public class PacketSniffer {
 
     private final String interfaceName;
-    private int packetCount;
-    private int lostCount;
-    private long startTime;
-    private boolean running;
-
-    private PcapHandle handle;
+    private final AtomicInteger packetCount = new AtomicInteger(0);
+    private final AtomicInteger lostCount = new AtomicInteger(0);
+    private boolean prettyPrint = false;
 
     public PacketSniffer(String interfaceName) {
         this.interfaceName = interfaceName;
-        this.packetCount = 0;
-        this.lostCount = 0;
-        this.running = false;
+    }
+
+    public void setPrettyPrint(boolean prettyPrint) {
+        this.prettyPrint = prettyPrint;
     }
 
     public static void main(String[] args) {
-        // 1. Validar argumentos: se requiere exactamente el nombre de la interfaz.
-        if (args.length != 1) {
-            System.err.println("Uso: sudo java -jar network-analyzer.jar <interfaz>");
+        // Check for help or version flags
+        if (args.length == 1) {
+            if (args[0].equals("--help") || args[0].equals("-h")) {
+                printHelp();
+                return;
+            }
+            if (args[0].equals("--version")) {
+                printVersion();
+                return;
+            }
+        }
+
+        // Parse interface and optional flags
+        String iface = null;
+        boolean pretty = false;
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals("--pretty")) {
+                pretty = true;
+            } else if (args[i].equals("--help") || args[i].equals("-h")) {
+                printHelp();
+                return;
+            } else if (args[i].equals("--version")) {
+                printVersion();
+                return;
+            } else if (iface == null) {
+                iface = args[i];
+            }
+        }
+
+        if (iface == null) {
+            System.err.println("Error: no interface specified.");
+            printHelp();
             System.exit(1);
         }
 
-        String interfaceName = args[0];
+        // Check for root privileges (pcap4j requires them)
+        if (!System.getProperty("os.name").toLowerCase().contains("win") && 
+            System.getProperty("user.name").equals("root") == false) {
+            System.err.println("Warning: capturing packets usually requires root/sudo privileges.");
+            System.err.println("If capture fails, re-run with sudo.");
+        }
 
-        // 2. Instanciar el sniffer y arrancar la captura.
-        PacketSniffer sniffer = new PacketSniffer(interfaceName);
-        sniffer.startCapture();
+        PacketSniffer sniffer = new PacketSniffer(iface);
+        sniffer.setPrettyPrint(pretty);
+        sniffer.start();
     }
 
-    /**
-     * Abre la interfaz indicada e inicia el bucle de captura pasiva.
-     */
-    public void startCapture() {
-        this.startTime = System.currentTimeMillis();
-        this.running = true;
+    private static void printHelp() {
+        System.out.println("Network Traffic Analyzer (Lite) - part of the Nexus Ecosystem");
+        System.out.println("GitHub: https://github.com/Alonex-x/network-traffic-analyzer\n");
+        System.out.println("Usage: java PacketSniffer <interface> [--pretty] [--help] [--version]");
+        System.out.println("  <interface>   Network interface to capture from (e.g., eth0, wlan0)");
+        System.out.println("  --pretty      Pretty-print JSON output (indented)");
+        System.out.println("  --help        Show this help message");
+        System.out.println("  --version     Show version information");
+        System.out.println("\nPRO version available at: [Gumroad link here]");
+    }
 
-        // 1. Registrar el hook de cierre (Ctrl+C) para imprimir el resumen final.
+    private static void printVersion() {
+        System.out.println("Network Traffic Analyzer v1.5.0 (Lite)");
+        System.out.println("PRO version available at: [Gumroad link here]");
+    }
+
+    public void start() {
         Runtime.getRuntime().addShutdownHook(new Thread(this::printSummary));
 
         try {
-            // 2. Obtener la interfaz de red por nombre.
-            PcapNetworkInterface networkInterface = Pcaps.getDevByName(interfaceName);
-            if (networkInterface == null) {
-                System.err.println("Error: Interfaz no encontrada: " + interfaceName);
-                System.exit(1);
+            PcapNetworkInterface nif = Pcaps.getDevByName(interfaceName);
+            if (nif == null) {
+                System.err.println("Error: Interface not found: " + interfaceName);
+                System.err.println("Available interfaces:");
+                for (PcapNetworkInterface dev : Pcaps.findAllDevs()) {
+                    System.out.println("  " + dev.getName() + " - " + dev.getDescription());
+                }
                 return;
             }
 
-            // Abrir la interfaz en modo promiscuo, solo lectura de trafico (captura pasiva).
-            handle = new PcapHandle.Builder(interfaceName)
-                    .snaplen(65536)
-                    .promiscuousMode(PcapNetworkInterface.PromiscuousMode.PROMISCUOUS)
-                    .timeoutMillis(10)
-                    .build();
+            PcapHandle handle = nif.openLive(65536, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, 10);
 
-            // 3. Configurar el listener de paquetes.
-            org.pcap4j.core.PacketListener listener = this::gotPacket;
+            PacketListener listener = packet -> {
+                packetCount.incrementAndGet();
+                Map<String, Object> metadata = PacketFormatter.extractMetadata(packet);
+                if (metadata != null) {
+                    if (prettyPrint) {
+                        System.out.println(PacketFormatter.toPrettyJson(metadata));
+                    } else {
+                        System.out.println(PacketFormatter.toJson(metadata));
+                    }
+                }
+                if (packetCount.get() % 1000 == 0) {
+                    try {
+                        PcapStat stats = handle.getStats();
+                        lostCount.set((int) (stats.getNumPacketsReceived() - stats.getNumPacketsCaptured()));
+                        System.err.println("Packets captured: " + packetCount.get() + " | Lost: " + lostCount.get());
+                    } catch (Exception ignored) {}
+                }
+            };
 
-            // 4. Iniciar el bucle de captura. Bloquea hasta Ctrl+C o cierre del handle.
             handle.loop(-1, listener);
-
         } catch (PcapNativeException e) {
-            System.err.println("Error: No se pudo abrir la interfaz. ¿Ejecutaste con sudo?");
-            System.exit(1);
-        } catch (NotOpenException | InterruptedException e) {
-            System.err.println("Error durante la captura: " + e.getMessage());
-            System.exit(1);
+            System.err.println("Error: Could not open interface. Did you run with sudo?");
+        } catch (Exception e) {
+            System.err.println("Error during capture: " + e.getMessage());
         }
     }
 
-    /**
-     * Callback invocado por Pcap4J por cada paquete capturado.
-     * Solo realiza lectura pasiva: extrae metadatos y los imprime como JSON.
-     */
-    private void gotPacket(Packet packet) {
-        packetCount++;
-
-        // Verificar si el paquete contiene una capa IP (v4 o v6).
-        boolean tieneCapaIp = packet.contains(IpV4Packet.class) || packet.contains(IpV6Packet.class);
-
-        if (tieneCapaIp) {
-            Map<String, Object> metadata = PacketFormatter.extractMetadata(packet);
-            if (metadata != null) {
-                String jsonLine = PacketFormatter.toJson(metadata);
-                System.out.println(jsonLine);
-            }
-        }
-
-        // Cada 1000 paquetes, imprimir estadisticas de progreso en stderr.
-        if (packetCount % 1000 == 0) {
-            try {
-                PcapStat stats = handle.getStats();
-                lostCount = (int) stats.getNumPacketsDropped();
-                System.err.println("Paquetes capturados: " + packetCount + " | Perdidos: " + lostCount);
-            } catch (Exception e) {
-                // Si no se pueden obtener estadisticas, se ignora silenciosamente.
-            }
-        }
-    }
-
-    /**
-     * Imprime el resumen final de la captura al finalizar (Ctrl+C).
-     */
     private void printSummary() {
-        running = false;
+        int captured = packetCount.get();
+        int lost = lostCount.get();
+        System.err.printf("Capture finished. Packets: %d | Lost: %d%n", captured, lost);
+    }
 
-        // Intentar obtener las estadisticas finales del handle antes de cerrarlo.
-        if (handle != null) {
-            try {
-                PcapStat stats = handle.getStats();
-                lostCount = (int) stats.getNumPacketsDropped();
-            } catch (Exception e) {
-                // Si el handle ya esta cerrado o no soporta estadisticas, se conserva el ultimo valor conocido.
-            }
-            if (handle.isOpen()) {
-                handle.close();
-            }
+    // Package-private helpers for testing
+    int getPacketCount() { return packetCount.get(); }
+    void incrementPackets() { packetCount.incrementAndGet(); }
+    void setPacketCount(int count) { packetCount.set(count); }
+    void gotPacket(Packet packet) {
+        packetCount.incrementAndGet();
+        Map<String, Object> metadata = PacketFormatter.extractMetadata(packet);
+        if (metadata != null) {
+            System.out.println(prettyPrint ? PacketFormatter.toPrettyJson(metadata) : PacketFormatter.toJson(metadata));
         }
-
-        double elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000.0;
-        System.err.printf("Captura finalizada. Paquetes: %d | Perdidos: %d | Tiempo: %.1fs%n",
-                packetCount, lostCount, elapsedSeconds);
+    }
+    void printSummaryWithHandle(PcapHandle handle) {
+        printSummary();
+        if (handle != null && handle.isOpen()) {
+            handle.close();
+        }
     }
 }
