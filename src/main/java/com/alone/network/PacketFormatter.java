@@ -73,7 +73,6 @@ public final class PacketFormatter {
             metadata.put("src_port", udpPacket.getHeader().getSrcPort().valueAsInt());
             metadata.put("dst_port", udpPacket.getHeader().getDstPort().valueAsInt());
             metadata.put("length", udpPacket.getHeader().getLength());
-
         } else {
             return null;
         }

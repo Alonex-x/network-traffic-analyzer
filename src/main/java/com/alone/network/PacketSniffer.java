@@ -11,14 +11,14 @@ import java.util.Map;
  *
  * Upgrade to Network Traffic Analyzer PRO for:
  *   - Web dashboard with live traffic visualization
- *   - Device detection (vendor, hostname, OS)
- *   - Advanced alerts (port scan, brute force, malicious IPs, country filter)
- *   - Traffic history, CSV/Excel export, and email/Telegram notifications
+ *   - Advanced device detection (vendor, hostname, OS)
+ *   - Alerting (port scan, brute force, malicious IPs)
+ *   - Traffic history, CSV/Excel export, email/Telegram notifications
  *
  *   Get the PRO version at: [Gumroad link here]
  *
- * This Lite version captures packets passively and outputs metadata as JSON.
- * Usage: java PacketSniffer <interface> [--pretty] [--help] [--version]
+ * This Lite version captures packets passively, outputs metadata as JSON,
+ * and performs basic device detection (MAC address).
  */
 public class PacketSniffer {
 
@@ -36,7 +36,6 @@ public class PacketSniffer {
     }
 
     public static void main(String[] args) {
-        // Check for help or version flags
         if (args.length == 1) {
             if (args[0].equals("--help") || args[0].equals("-h")) {
                 printHelp();
@@ -48,7 +47,6 @@ public class PacketSniffer {
             }
         }
 
-        // Parse interface and optional flags
         String iface = null;
         boolean pretty = false;
         for (int i = 0; i < args.length; i++) {
@@ -71,7 +69,6 @@ public class PacketSniffer {
             System.exit(1);
         }
 
-        // Check for root privileges (pcap4j requires them)
         if (!System.getProperty("os.name").toLowerCase().contains("win") && 
             System.getProperty("user.name").equals("root") == false) {
             System.err.println("Warning: capturing packets usually requires root/sudo privileges.");
@@ -119,6 +116,15 @@ public class PacketSniffer {
                 packetCount.incrementAndGet();
                 Map<String, Object> metadata = PacketFormatter.extractMetadata(packet);
                 if (metadata != null) {
+                    // Device detection (Lite): extract MAC and display basic info
+                    String srcIp = (String) metadata.get("src_ip");
+                    String srcMac = packet.getRawData() != null ? 
+                        String.format("%02x:%02x:%02x:%02x:%02x:%02x",
+                            packet.getRawData()[6], packet.getRawData()[7],
+                            packet.getRawData()[8], packet.getRawData()[9],
+                            packet.getRawData()[10], packet.getRawData()[11]) : "unknown";
+                    System.err.println(DeviceDetector.identify(srcMac, srcIp));
+
                     if (prettyPrint) {
                         System.out.println(PacketFormatter.toPrettyJson(metadata));
                     } else {
@@ -156,6 +162,9 @@ public class PacketSniffer {
         packetCount.incrementAndGet();
         Map<String, Object> metadata = PacketFormatter.extractMetadata(packet);
         if (metadata != null) {
+            String srcIp = (String) metadata.get("src_ip");
+            String srcMac = "unknown";
+            System.err.println(DeviceDetector.identify(srcMac, srcIp));
             System.out.println(prettyPrint ? PacketFormatter.toPrettyJson(metadata) : PacketFormatter.toJson(metadata));
         }
     }
